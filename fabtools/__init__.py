@@ -1,5 +1,6 @@
 # Keep imports sorted alphabetically
 import fabtools.arch
+import fabtools.bsd
 import fabtools.cron
 import fabtools.deb
 import fabtools.disk
@@ -15,7 +16,7 @@ import fabtools.oracle_jdk
 import fabtools.pkg
 import fabtools.postgres
 import fabtools.python
-import fabtools.python_setuptools
+import fabtools.python_distribute
 import fabtools.rpm
 import fabtools.service
 import fabtools.shorewall

@@ -17,7 +17,7 @@ from fabtools.group import (
 )
 from fabtools.files import uncommented_lines
 from fabtools.utils import run_as_root
-
+from fabtools.system import distrib_id
 
 def exists(name):
     """
@@ -78,7 +78,7 @@ def create(name, comment=None, home=None, create_home=None, skeleton_dir=None,
     # Note that we use useradd (and not adduser), as it is the most
     # portable command to create users across various distributions:
     # http://refspecs.linuxbase.org/LSB_4.1.0/LSB-Core-generic/LSB-Core-generic/useradd.html
-
+    distrib = distrib_id()
     args = []
     if comment:
         args.append('-c %s' % quote(comment))
@@ -105,17 +105,29 @@ def create(name, comment=None, home=None, create_home=None, skeleton_dir=None,
     if password:
         crypted_password = _crypt_password(password)
         args.append('-p %s' % quote(crypted_password))
-    if system:
-        args.append('-r')
     if shell:
         args.append('-s %s' % quote(shell))
+    if system:
+        if distrib == 'FreeBSD':
+            # if a value of '-' is given as the argument fd, then the password 
+            #will be set to '*', rendering the account inacessible 
+            #via password-based login
+            args.append('-h -') 
+        else:
+            args.append('-r')
     if uid:
         args.append('-u %s' % quote(uid))
         if non_unique:
             args.append('-o')
-    args.append(name)
-    args = ' '.join(args)
-    run_as_root('useradd %s' % args)
+    
+    if distrib == 'FreeBSD':
+        args.insert(0, name)
+        args = ' '.join(args)
+        run_as_root('pw useradd %s' % args)
+    else:
+        args.append(name)
+        args = ' '.join(args)
+        run_as_root('useradd %s' % args)
 
     if ssh_public_keys:
         if isinstance(ssh_public_keys, basestring):

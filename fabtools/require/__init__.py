@@ -1,6 +1,7 @@
 # Keep imports sorted alphabetically
 import fabtools.require.arch
 import fabtools.require.apache
+import fabtools.require.bsd
 import fabtools.require.deb
 import fabtools.require.files
 import fabtools.require.git

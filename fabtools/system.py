@@ -15,7 +15,7 @@ def distrib_id():
     Get the OS distribution ID.
 
     Returns one of ``"Debian"``, ``"Ubuntu"``, ``"RHEL"``, ``"CentOS"``,
-    ``"Fedora"``, ``"Archlinux"``, ``"SunOS"``...
+    ``"Fedora"``, ``"Archlinux"``, ``"SunOS"``, ``"FreeBSD"...
 
     Example::
 
@@ -43,14 +43,19 @@ def distrib_id():
                     return "Archlinux"
                 elif is_file('/etc/redhat-release'):
                     release = run('cat /etc/redhat-release')
-                    if release.startswith('Red Hat Enterprise Linux'):
+                    if release.startswith('Rd Hat Enterprise Linux'):
                         return "RHEL"
                     elif release.startswith('CentOS'):
                         return "CentOS"
                     elif release.startswith('Scientific Linux'):
                         return "SLES"
+
         elif kernel == "SunOS":
             return "SunOS"
+        elif kernel == "FreeBSD":
+            release = run('uname -v')
+            if release.startswith('FreeBSD'):
+                return "FreeBSD"
 
 
 def distrib_release():
@@ -74,6 +79,8 @@ def distrib_release():
             return run('lsb_release -r --short')
 
         elif kernel == 'SunOS':
+            return run('uname -v')
+        elif kernel == 'FreeBSD':
             return run('uname -v')
 
 
@@ -118,6 +125,8 @@ def distrib_family():
         return 'redhat'
     elif distrib in ['SunOS']:
         return 'sun'
+    elif distrib in ['FreeBSD', 'OpenBSD']:
+        return 'BSD'
     else:
         return 'other'
 
@@ -126,7 +135,10 @@ def get_hostname():
     """
     Get the fully qualified hostname.
     """
+    distrib = distrib_id()
     with settings(hide('running', 'stdout')):
+        if distrib == 'FreeBSD':
+                return run('hostname -f')
         return run('hostname --fqdn')
 
 
