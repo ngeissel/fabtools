@@ -32,6 +32,7 @@ def command():
     from fabtools.require.deb import package as require_deb_package
     from fabtools.require.pkg import package as require_pkg_package
     from fabtools.require.rpm import package as require_rpm_package
+    from fabtools.require.portage import package as require_portage_package
     from fabtools.system import distrib_family
 
     res = run('git --version', quiet=True)
@@ -43,6 +44,8 @@ def command():
             require_rpm_package('git')
         elif family == 'sun':
             require_pkg_package('scmgit-base')
+        elif family == 'gentoo':
+            require_portage_package('dev-vcs/git')
         else:
             raise NotImplementedError()
 
@@ -79,7 +82,9 @@ def working_copy(remote_url, path=None, branch="master", update=True,
                  the directory name of the working copy is created by ``git``.
     :type path: str
 
-    :param branch: Branch to check out.
+    :param branch: Branch or tag to check out.  If the given value is a tag
+                   name, update must be ``False`` or consecutive calls will
+                   fail.
     :type branch: str
 
     :param update: Whether or not to fetch and merge remote changesets.
@@ -103,13 +108,13 @@ def working_copy(remote_url, path=None, branch="master", update=True,
         if path.endswith('.git'):
             path = path[:-4]
 
-    if is_dir(path, use_sudo=use_sudo) and update:
+    if is_dir(path, use_sudo=use_sudo):
+        # always fetch changesets from remote and checkout branch / tag
         git.fetch(path=path, use_sudo=use_sudo, user=user)
         git.checkout(path=path, branch=branch, use_sudo=use_sudo, user=user)
-        git.pull(path=path, use_sudo=use_sudo, user=user)
-
-    elif is_dir(path, use_sudo=use_sudo) and not update:
-        git.checkout(path=path, branch=branch, use_sudo=use_sudo, user=user)
+        if update:
+            # only 'merge' if update is True
+            git.pull(path=path, use_sudo=use_sudo, user=user)
 
     elif not is_dir(path, use_sudo=use_sudo):
         git.clone(remote_url, path=path, use_sudo=use_sudo, user=user)

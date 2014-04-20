@@ -11,6 +11,7 @@ from __future__ import with_statement
 from fabric.api import hide, run, settings
 
 from fabtools.utils import run_as_root
+from fabtools.files import getmtime, is_file
 
 
 MANAGER = 'DEBIAN_FRONTEND=noninteractive apt-get'
@@ -215,3 +216,25 @@ def add_apt_key(filename=None, url=None, keyid=None, keyserver='subkeys.pgp.net'
 
     if update:
         update_index()
+
+
+def last_update_time():
+    """
+    Get the time of last APT index update
+
+    This is the last modification time of ``/var/lib/apt/periodic/fabtools-update-success-stamp``.
+
+    Returns ``-1`` if there was no update before.
+
+    Example::
+
+        import fabtools
+
+        print(fabtools.deb.last_update_time())
+        # 1377603808.02
+
+    """
+    STAMP = '/var/lib/apt/periodic/fabtools-update-success-stamp'
+    if not is_file(STAMP):
+        return -1
+    return getmtime(STAMP)

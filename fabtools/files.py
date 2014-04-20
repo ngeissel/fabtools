@@ -7,7 +7,15 @@ from __future__ import with_statement
 from pipes import quote
 import os
 
-from fabric.api import abort, hide, run, settings, sudo, warn
+from fabric.api import (
+    abort,
+    env,
+    hide,
+    run,
+    settings,
+    sudo,
+    warn,
+)
 from fabric.contrib.files import upload_template as _upload_template
 from fabric.contrib.files import exists
 
@@ -92,21 +100,59 @@ def mode(path, use_sudo=False):
             return result
 
 
-def upload_template(filename, template, context=None, use_sudo=False,
-                    user="root", mkdir=False, chown=False):
+def umask(use_sudo=False):
+    """
+    Get the user's umask.
+
+    Returns a string such as ``'0002'``, representing the user's umask
+    as an octal number.
+
+    If `use_sudo` is `True`, this function returns root's umask.
+    """
+    func = use_sudo and run_as_root or run
+    return func('umask')
+
+
+def upload_template(filename, destination, context=None, use_jinja=False,
+                    template_dir=None, use_sudo=False, backup=True,
+                    mirror_local_mode=False, mode=None,
+                    mkdir=False, chown=False, user=None):
     """
     Upload a template file.
+
+    This is a wrapper around :func:`fabric.contrib.files.upload_template`
+    that adds some extra parameters.
+
+    If ``mkdir`` is True, then the remote directory will be created, as
+    the current user or as ``user`` if specified.
+
+    If ``chown`` is True, then it will ensure that the current user (or
+    ``user`` if specified) is the owner of the remote file.
     """
+
     if mkdir:
-        d = os.path.dirname(filename)
+        remote_dir = os.path.dirname(destination)
         if use_sudo:
-            sudo('mkdir -p "%s"' % d, user=user)
+            sudo('mkdir -p %s' % quote(remote_dir), user=user)
         else:
-            run('mkdir -p "%s"' % d)
-    _upload_template(os.path.join("templates", template), filename,
-                     context=context, use_sudo=use_sudo)
+            run('mkdir -p %s' % quote(remote_dir))
+
+    _upload_template(
+        filename=filename,
+        destination=destination,
+        context=context,
+        use_jinja=use_jinja,
+        template_dir=template_dir,
+        use_sudo=use_sudo,
+        backup=backup,
+        mirror_local_mode=mirror_local_mode,
+        mode=mode,
+    )
+
     if chown:
-        run_as_root('chown %s:%s "%s"' % (user, user, filename))
+        if user is None:
+            user = env.user
+        run_as_root('chown %s: %s' % (user, quote(destination)))
 
 
 def md5sum(filename, use_sudo=False):
@@ -230,3 +276,49 @@ def uncommented_lines(filename, use_sudo=False):
                 if line and not line.startswith('#')]
     else:
         return []
+
+
+def getmtime(path, use_sudo=False):
+    """
+    Return the time of last modification of path.
+    The return value is a number giving the number of seconds since the epoch
+
+    Same as :py:func:`os.path.getmtime()`
+    """
+    func = use_sudo and run_as_root or run
+    with settings(hide('running', 'stdout')):
+        return int(func('stat -c %%Y "%(path)s" ' % locals()).strip())
+
+
+def copy(source, destination, recursive=False, use_sudo=False):
+    """
+    Copy a file or directory
+    """
+    func = use_sudo and run_as_root or run
+    options = '-r' if recursive else ''
+    func('/bin/cp {} {} {}'.format(options, quote(source), quote(destination)))
+
+
+def move(source, destination, use_sudo=False):
+    """
+    Move a file or directory
+    """
+    func = use_sudo and run_as_root or run
+    func('/bin/mv {} {}'.format(quote(source), quote(destination)))
+
+
+def symlink(source, destination, use_sudo=False):
+    """
+    Create a symbolic link to a file or directory
+    """
+    func = use_sudo and run_as_root or run
+    func('/bin/ln -s {} {}'.format(quote(source), quote(destination)))
+
+
+def remove(path, recursive=False, use_sudo=False):
+    """
+    Remove a file or directory
+    """
+    func = use_sudo and run_as_root or run
+    options = '-r' if recursive else ''
+    func('/bin/rm {} {}'.format(options, quote(path)))
